@@ -1,251 +1,1194 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KDT 이탈 분석 대시보드 | AI 자동화 실험실</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KDT AI 운영 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f5f3;
+      --panel: #ffffff;
+      --panel-alt: #fafaf8;
+      --line: #e7e5e1;
+      --text: #111827;
+      --muted: #6b7280;
+      --navy: #111827;
+      --blue: #2563eb;
+      --amber: #d97706;
+      --red: #dc2626;
+      --green: #16a34a;
+      --shadow: 0 14px 40px rgba(17, 24, 39, 0.08);
+    }
 
-  .header { background: #1a1a1a; padding: 28px 40px; }
-  .header-badge { font-size: 11px; color: #666; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
-  .header-title { font-size: 24px; font-weight: 600; color: #fff; margin-bottom: 4px; }
-  .header-sub { font-size: 13px; color: #888; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif;
+      background: linear-gradient(180deg, #eef1f6 0%, var(--bg) 16%);
+      color: var(--text);
+      min-height: 100vh;
+    }
 
-  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
-  .kpi { background: #fff; border-radius: 10px; padding: 18px 20px; border: 1px solid #e8e8e8; }
-  .kpi-label { font-size: 11px; color: #888; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
-  .kpi-value { font-size: 30px; font-weight: 700; margin-bottom: 4px; }
-  .kpi-sub { font-size: 11px; color: #999; }
-  .kpi-danger .kpi-value { color: #dc2626; }
-  .kpi-warn .kpi-value { color: #d97706; }
-  .kpi-ok .kpi-value { color: #16a34a; }
-  .kpi-blue .kpi-value { color: #2563eb; }
+    .header {
+      background: radial-gradient(circle at top left, #1f2d45, #111827 58%);
+      color: #fff;
+      padding: 28px 24px;
+      box-shadow: var(--shadow);
+    }
 
-  .charts-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 20px; }
-  .card { background: #fff; border-radius: 10px; padding: 22px 24px; border: 1px solid #e8e8e8; }
-  .card-title { font-size: 12px; font-weight: 600; color: #888; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 16px; }
-  .chart-wrap { position: relative; width: 100%; }
+    .header-inner,
+    .page {
+      max-width: 1240px;
+      margin: 0 auto;
+    }
 
-  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
-  .legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; }
-  .legend-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0; }
+    .header-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+    }
 
-  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
-  .bar-label { width: 110px; font-size: 11px; color: #666; text-align: right; flex-shrink: 0; }
-  .bar-track { flex: 1; height: 20px; background: #f0f0ee; border-radius: 4px; overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 4px; }
-  .bar-count { width: 44px; font-size: 12px; font-weight: 600; color: #1a1a1a; }
+    .eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 8px;
+    }
 
-  .insight-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-  .insight { border-radius: 8px; padding: 14px 16px; }
-  .insight-red { background: #fef2f2; border-left: 3px solid #dc2626; }
-  .insight-yellow { background: #fffbeb; border-left: 3px solid #d97706; }
-  .insight-green { background: #f0fdf4; border-left: 3px solid #16a34a; }
-  .insight-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-  .insight-red .insight-title { color: #991b1b; }
-  .insight-yellow .insight-title { color: #92400e; }
-  .insight-green .insight-title { color: #166534; }
-  .insight-body { font-size: 12px; line-height: 1.6; }
-  .insight-red .insight-body { color: #7f1d1d; }
-  .insight-yellow .insight-body { color: #78350f; }
-  .insight-green .insight-body { color: #14532d; }
+    .header-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
 
-  .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
-  .action-card { background: #fff; border-radius: 10px; padding: 16px 18px; border: 1px solid #e8e8e8; }
-  .action-week { font-size: 10px; font-weight: 700; color: #d97706; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 6px; }
-  .action-title { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 6px; }
-  .action-body { font-size: 11px; color: #666; line-height: 1.6; }
+    .header-copy {
+      margin-top: 8px;
+      color: rgba(255, 255, 255, 0.76);
+      line-height: 1.7;
+      font-size: 14px;
+      max-width: 620px;
+    }
 
-  .footer { background: #1a1a1a; padding: 20px 40px; text-align: center; }
-  .footer p { font-size: 12px; color: #555; line-height: 1.8; }
-  .footer strong { color: #888; }
+    .header-meta {
+      min-width: 240px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 16px 18px;
+      backdrop-filter: blur(10px);
+    }
 
-  @media (max-width: 768px) {
-    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-    .charts-row { grid-template-columns: 1fr; }
-    .action-grid { grid-template-columns: 1fr; }
-    .header { padding: 20px 20px; }
-    .container { padding: 20px 16px; }
-  }
-</style>
+    .meta-label {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .meta-value {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .page {
+      padding: 28px 20px 48px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .setup-note,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .setup-note {
+      padding: 18px 20px;
+      background: linear-gradient(180deg, #fff9ed, #fff);
+      border-color: #f2d3a4;
+    }
+
+    .setup-note strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #92400e;
+    }
+
+    .setup-note p,
+    .setup-note li {
+      color: #7c5f18;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .setup-note ul {
+      margin-top: 10px;
+      padding-left: 18px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 300px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .sidebar,
+    .content {
+      display: grid;
+      gap: 20px;
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .filters {
+      display: grid;
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    select,
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+    }
+
+    .button-row,
+    .quick-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: none;
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease;
+      font-family: inherit;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary-btn {
+      background: var(--navy);
+      color: #fff;
+      padding: 11px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(17, 24, 39, 0.14);
+    }
+
+    .secondary-btn,
+    .quick-btn {
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .secondary-btn:hover,
+    .quick-btn:hover {
+      background: var(--navy);
+      color: #fff;
+    }
+
+    .summary-strip {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .kpi-card {
+      background: linear-gradient(180deg, var(--panel), var(--panel-alt));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .kpi-sub {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .kpi-danger .kpi-value {
+      color: var(--red);
+    }
+
+    .kpi-warn .kpi-value {
+      color: var(--amber);
+    }
+
+    .dashboard-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .chart-panel {
+      min-height: 340px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 260px;
+    }
+
+    .panel-subtext {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .ask-box {
+      display: grid;
+      gap: 12px;
+    }
+
+    .answer-area {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .empty-state {
+      padding: 18px 0 6px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .answer-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .answer-section {
+      margin-bottom: 18px;
+    }
+
+    .answer-section h4 {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .answer-section ul {
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .answer-query {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    .answer-chart {
+      margin-top: 14px;
+      border-top: 1px solid var(--line);
+      padding-top: 16px;
+    }
+
+    .answer-chart canvas {
+      width: 100% !important;
+      height: 260px !important;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--muted);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: 11px;
+    }
+
+    tbody tr:hover {
+      background: #fafafa;
+    }
+
+    .risk-badge,
+    .positive-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 5px 8px;
+    }
+
+    .risk-badge {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .positive-badge {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .danger-text {
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .loading-line {
+      font-size: 14px;
+      color: var(--muted);
+      display: none;
+    }
+
+    .loading-line.show {
+      display: block;
+    }
+
+    @media (max-width: 1080px) {
+      .grid,
+      .summary-strip,
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header-inner {
+        flex-direction: column;
+      }
+    }
+  </style>
 </head>
 <body>
-
-<div class="header">
-  <div class="header-badge">🤖 AI 자동화 실험실 · KDT 교육운영팀</div>
-  <div class="header-title">KDT 이탈 분석 대시보드</div>
-  <div class="header-sub">Claude AI + Google Sheets MCP 자동 생성 · 7개 과정 27회차 272건 실제 데이터</div>
-</div>
-
-<div class="container">
-
-  <div class="kpi-grid">
-    <div class="kpi">
-      <div class="kpi-label">총 이탈 건수</div>
-      <div class="kpi-value kpi-blue" style="color:#2563eb;">272건</div>
-      <div class="kpi-sub">7개 과정 · 27개 회차</div>
-    </div>
-    <div class="kpi kpi-danger">
-      <div class="kpi-label">1주차 이탈 집중도</div>
-      <div class="kpi-value">38.6%</div>
-      <div class="kpi-sub">105건 — 전체 최대 병목</div>
-    </div>
-    <div class="kpi kpi-ok">
-      <div class="kpi-label">긍정적 이탈 (취업)</div>
-      <div class="kpi-value">26.8%</div>
-      <div class="kpi-sub">73건 — 별도 집계 필요</div>
-    </div>
-    <div class="kpi kpi-warn">
-      <div class="kpi-label">운영 개입 가능 이탈</div>
-      <div class="kpi-value">40.8%</div>
-      <div class="kpi-sub">훈련·제도·커리큘럼·난이도</div>
-    </div>
-  </div>
-
-  <div class="charts-row">
-    <div class="card">
-      <div class="card-title">주차별 이탈 추이</div>
-      <div class="legend">
-        <span><span class="legend-dot" style="background:#dc2626;"></span>위험 구간</span>
-        <span><span class="legend-dot" style="background:#2563eb;"></span>일반 구간</span>
+  <header class="header">
+    <div class="header-inner">
+      <div>
+        <div class="eyebrow">KDT 교육 운영 데이터 분석</div>
+        <h1 class="header-title">KDT AI 운영 대시보드</h1>
+        <p class="header-copy">
+          Google Sheets에 있는 KDT 데이터를 읽어서 과정별 이탈, 주차별 집중 구간, 이탈 사유 분포를
+          바로 시각화하는 단일 HTML 대시보드입니다.
+        </p>
       </div>
-      <div class="chart-wrap" style="height:220px;">
-        <canvas id="weekChart"></canvas>
+      <div class="header-meta">
+        <div class="meta-label">데이터 상태</div>
+        <div class="meta-value" id="metaStatus">시트 연결 대기</div>
+        <div class="meta-label">마지막 새로고침</div>
+        <div class="meta-value" id="metaUpdated">-</div>
+        <div class="meta-label">현재 필터</div>
+        <div class="meta-value" id="metaFilter">전체</div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">이탈 사유 분포</div>
-      <div class="legend" id="reasonLegend"></div>
-      <div class="chart-wrap" style="height:220px;">
-        <canvas id="reasonChart"></canvas>
-      </div>
-    </div>
-  </div>
+  </header>
 
-  <div class="card" style="margin-bottom:20px;">
-    <div class="card-title">과정별 이탈 현황</div>
-    <div id="courseBars"></div>
-  </div>
+  <main class="page">
+    <section class="setup-note" id="setupNote">
+      <strong>먼저 1가지만 바꾸면 됩니다.</strong>
+      <p>이 파일 상단의 <code>SHEET_CSV_URL</code> 값을 Google Sheets의 게시된 CSV 주소로 바꾸세요.</p>
+      <ul>
+        <li>Google Sheets에서 <code>파일 &gt; 공유 &gt; 웹에 게시</code>로 시트를 게시합니다.</li>
+        <li>게시된 CSV 링크를 이 HTML 안의 <code>SHEET_CSV_URL</code>에 넣습니다.</li>
+        <li>컬럼은 <code>과정명, 기수, 수강생ID, 이탈여부, 이탈주차, 이탈사유, 상태, 출석률</code>가 가장 좋습니다.</li>
+      </ul>
+    </section>
 
-  <div class="insight-wrap">
-    <div class="insight insight-red">
-      <div class="insight-title">🚨 1주차 병목 — 전체 이탈의 39%가 첫 주에 집중</div>
-      <div class="insight-body">온보딩 단계에서 이탈이 폭발적으로 발생. 과정 난이도 체감·기대치 불일치·행정 절차 이슈가 복합 작용. 특히 백엔드(80건)·AI 백엔드(48건)에서 두드러짐. 2주차(16건)의 6.5배 수준.</div>
-    </div>
-    <div class="insight insight-yellow">
-      <div class="insight-title">⚠️ 훈련·제도 이슈 34건 — 운영팀 즉시 개입 가능 영역</div>
-      <div class="insight-body">수강생 개인 문제가 아닌 제도·행정 문제로 인한 이탈. 사전 안내 강화와 빠른 민원 처리만으로도 상당 부분 예방 가능한 구조적 문제.</div>
-    </div>
-    <div class="insight insight-green">
-      <div class="insight-title">✅ 조기취업 73건 — 긍정 이탈, 별도 집계 필수</div>
-      <div class="insight-body">전체 이탈의 27%가 취업 성과. 수료율 계산 시 분모에서 제외하지 않으면 이탈률이 실제보다 높게 측정됨. 취업률 KPI로 별도 트래킹 권장.</div>
-    </div>
-  </div>
+    <section class="grid">
+      <aside class="sidebar">
+        <div class="panel">
+          <div class="panel-title">필터</div>
+          <div class="filters">
+            <div class="field">
+              <label for="courseFilter">과정</label>
+              <select id="courseFilter">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cohortFilter">기수</label>
+              <select id="cohortFilter">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="reasonFilter">이탈 사유</label>
+              <select id="reasonFilter">
+                <option value="">전체</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="searchInput">검색</label>
+              <input id="searchInput" type="text" placeholder="예: 백엔드, 3주차, 조기취업" />
+            </div>
+            <div class="button-row">
+              <button class="primary-btn" id="applyFiltersBtn" type="button">필터 적용</button>
+              <button class="secondary-btn" id="resetFiltersBtn" type="button">초기화</button>
+            </div>
+          </div>
+        </div>
 
-  <div style="margin-bottom:12px; font-size:12px; font-weight:600; color:#888; letter-spacing:0.07em; text-transform:uppercase;">차기 기수 운영 제언</div>
-  <div class="action-grid">
-    <div class="action-card">
-      <div class="action-week">D-3 · 1주차 직전</div>
-      <div class="action-title">온보딩 세션 강화</div>
-      <div class="action-body">커리큘럼 전체 로드맵 공유, 1:1 기대치 확인 면담, 훈련 제도 Q&A 세션 필수 운영. 담당: 운영 매니저</div>
-    </div>
-    <div class="action-card">
-      <div class="action-week">3~4주차 · 프로젝트 직전</div>
-      <div class="action-title">Pre-Project 가이드 배포</div>
-      <div class="action-body">난이도·기초부족 이탈 방어. 팀 빌딩 세션 + 멘토 배정 + 학습 보조자료 선제 제공. 담당: 기술 멘토</div>
-    </div>
-    <div class="action-card">
-      <div class="action-week">7주차 · 중반 진입 전</div>
-      <div class="action-title">전수 매니저 면담</div>
-      <div class="action-body">8주차 기술스택 심화 전 위험군 조기 감지. 출석률 하락·과제 미제출 수강생 우선 개입. 담당: 매니저/강사</div>
-    </div>
-  </div>
+        <div class="panel">
+          <div class="panel-title">빠른 질문</div>
+          <div class="quick-actions">
+            <button class="quick-btn" data-query="전체 분석">전체 분석</button>
+            <button class="quick-btn" data-query="위험 기수 분석">위험 기수</button>
+            <button class="quick-btn" data-query="1주차 이탈 분석">1주차 이탈</button>
+            <button class="quick-btn" data-query="이탈 사유 분석">이탈 사유</button>
+            <button class="quick-btn" data-query="조기취업과 부정적 이탈 비교">조기취업 vs 부정적 이탈</button>
+          </div>
+        </div>
+      </aside>
 
-</div>
+      <section class="content">
+        <div class="summary-strip">
+          <article class="kpi-card">
+            <div class="kpi-label">전체 과정 수</div>
+            <div class="kpi-value" id="kpiCourses">-</div>
+            <div class="kpi-sub" id="kpiCoursesSub">시트 연결 후 표시됩니다.</div>
+          </article>
+          <article class="kpi-card">
+            <div class="kpi-label">전체 기수 수</div>
+            <div class="kpi-value" id="kpiCohorts">-</div>
+            <div class="kpi-sub" id="kpiCohortsSub">시트 연결 후 표시됩니다.</div>
+          </article>
+          <article class="kpi-card kpi-danger">
+            <div class="kpi-label">전체 이탈 건수</div>
+            <div class="kpi-value" id="kpiDropouts">-</div>
+            <div class="kpi-sub" id="kpiDropoutsSub">시트 연결 후 표시됩니다.</div>
+          </article>
+          <article class="kpi-card kpi-warn">
+            <div class="kpi-label">가장 큰 이탈 사유</div>
+            <div class="kpi-value" id="kpiReason">-</div>
+            <div class="kpi-sub" id="kpiReasonSub">시트 연결 후 표시됩니다.</div>
+          </article>
+        </div>
 
-<div class="footer">
-  <p>🤖 이 대시보드는 <strong>Claude AI + Google Sheets MCP</strong>가 자동 생성했습니다.<br>
-  데이터 기준: KDT 7개 과정 27회차 272건 이탈 기록 · 분석 소요 시간: 28초<br>
-  <strong>AI 자동화 실험실</strong> — 비개발자도 만드는 데이터 기반 운영 시스템</p>
-</div>
+        <div class="dashboard-grid">
+          <div class="panel chart-panel">
+            <div class="panel-title">과정별 이탈 건수</div>
+            <div class="chart-wrap"><canvas id="courseChart"></canvas></div>
+            <p class="panel-subtext" id="courseChartNote">데이터를 불러오면 과정별 이탈 건수를 보여줍니다.</p>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-title">주차별 이탈 추이</div>
+            <div class="chart-wrap"><canvas id="weekChart"></canvas></div>
+            <p class="panel-subtext" id="weekChartNote">데이터를 불러오면 주차별 이탈 집중 구간을 보여줍니다.</p>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-title">이탈 사유 분포</div>
+            <div class="chart-wrap"><canvas id="reasonChart"></canvas></div>
+            <p class="panel-subtext" id="reasonChartNote">데이터를 불러오면 주요 이탈 사유를 보여줍니다.</p>
+          </div>
+          <div class="panel chart-panel">
+            <div class="panel-title">기수별 이탈률</div>
+            <div class="chart-wrap"><canvas id="cohortChart"></canvas></div>
+            <p class="panel-subtext" id="cohortChartNote">데이터를 불러오면 위험 기수를 보여줍니다.</p>
+          </div>
+        </div>
 
-<script>
-const weekValues = [105,16,9,13,13,12,9,9,7,10,6,4,7,5,5,5,4,3,4,4,6,4,2,4];
-const dangerIdx = [0,1,2,3,4,5,7];
-new Chart(document.getElementById('weekChart'), {
-  type: 'bar',
-  data: {
-    labels: Array.from({length:24},(_,i)=>i+1+'주'),
-    datasets: [{
-      data: weekValues,
-      backgroundColor: weekValues.map((_,i) => dangerIdx.includes(i) ? '#dc2626' : '#2563eb'),
-      borderRadius: 3, borderSkipped: false
-    }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.parsed.y+'건' } } },
-    scales: {
-      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#999', maxRotation: 0 } },
-      y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 10 }, color: '#999' } }
+        <div class="panel ask-box">
+          <div class="panel-title">질문형 분석</div>
+          <div class="field">
+            <label for="queryInput">질문</label>
+            <input id="queryInput" type="text" placeholder="예: 백엔드 과정만 분석해줘 / 1주차 이탈 원인 보여줘" />
+          </div>
+          <div class="button-row">
+            <button class="primary-btn" id="analyzeBtn" type="button">질문 분석</button>
+            <span class="loading-line" id="loadingLine">현재 필터 기준으로 데이터를 집계하고 있습니다...</span>
+          </div>
+        </div>
+
+        <div class="answer-area" id="answerArea">
+          <div class="empty-state">
+            Google Sheets가 연결되면 카드와 차트가 자동으로 채워지고, 아래에서 질문형 분석도 바로 쓸 수 있습니다.
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-title">상세 표</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>과정명</th>
+                  <th>기수</th>
+                  <th>수강생 ID</th>
+                  <th>상태</th>
+                  <th>이탈 여부</th>
+                  <th>이탈 주차</th>
+                  <th>이탈 사유</th>
+                  <th>출석률</th>
+                </tr>
+              </thead>
+              <tbody id="detailTableBody">
+                <tr>
+                  <td colspan="8" class="muted">시트 연결 후 데이터가 표시됩니다.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1vaPmyWpRZOoCtL71N-5cRntQKfY9pmT2RcduERxEjZk/export?format=csv&gid=1430813480";
+    const FALLBACK_CSV_URL = "./kdt-data.csv";
+
+    const FIELD_ALIASES = {
+      course: ["과정명", "과정", "과정/회차", "course"],
+      cohort: ["기수", "회차", "과정/회차", "cohort", "batch"],
+      studentId: ["이름", "수강생id", "수강생 id", "학습자id", "학습자 id", "studentid", "student_id"],
+      dropout: ["이탈구분", "이탈여부", "이탈 여부", "dropout"],
+      week: ["이탈주차", "이탈 주차", "dropoutweek", "dropout_week", "week"],
+      reason: ["이탈사유 구분", "이탈사유", "이탈 사유", "dropoutreason", "dropout_reason", "reason"],
+      status: ["이탈구분", "상태", "status"],
+      attendance: ["출석률", "attendance", "attendance_rate", "attendancerate"]
+    };
+
+    const state = {
+      allRows: [],
+      filteredRows: [],
+      charts: {},
+      answerChart: null
+    };
+
+    function normalizeKey(value) {
+      return String(value || "")
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/[_-]/g, "")
+        .trim();
     }
-  }
-});
 
-const reasons = [
-  { label: '취업·조기취업', value: 73, color: '#16a34a' },
-  { label: '기타', value: 45, color: '#94a3b8' },
-  { label: '훈련·제도 이슈', value: 34, color: '#dc2626' },
-  { label: '커리큘럼 불일치', value: 22, color: '#d97706' },
-  { label: '학업', value: 20, color: '#2563eb' },
-  { label: '건강·가정', value: 19, color: '#db2777' },
-  { label: '근무·시간', value: 16, color: '#7c3aed' },
-  { label: '난이도 부족', value: 15, color: '#ea580c' },
-  { label: '진로변경', value: 14, color: '#65a30d' },
-  { label: '타 교육 선택', value: 12, color: '#0891b2' }
-];
-const lg = document.getElementById('reasonLegend');
-reasons.forEach(d => {
-  lg.innerHTML += `<span><span class="legend-dot" style="background:${d.color}"></span>${d.label} ${Math.round(d.value/272*100)}%</span>`;
-});
-new Chart(document.getElementById('reasonChart'), {
-  type: 'doughnut',
-  data: {
-    labels: reasons.map(d=>d.label),
-    datasets: [{ data: reasons.map(d=>d.value), backgroundColor: reasons.map(d=>d.color), borderWidth: 0, hoverOffset: 4 }]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false, cutout: '60%',
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: c => c.label+': '+c.parsed+'건 ('+Math.round(c.parsed/272*100)+'%)' } }
+    function buildFieldMap(headers) {
+      const normalizedHeaders = headers.map((header) => ({
+        original: header,
+        normalized: normalizeKey(header)
+      }));
+
+      const map = {};
+      Object.entries(FIELD_ALIASES).forEach(([canonical, aliases]) => {
+        const match = normalizedHeaders.find((header) =>
+          aliases.some((alias) => header.normalized === normalizeKey(alias))
+        );
+        map[canonical] = match ? match.original : null;
+      });
+      return map;
     }
-  }
-});
 
-const courses = [
-  { name: '백엔드', value: 80, color: '#dc2626' },
-  { name: 'AI 백엔드', value: 48, color: '#ea580c' },
-  { name: '데이터분석', value: 36, color: '#2563eb' },
-  { name: '웹풀스택', value: 31, color: '#7c3aed' },
-  { name: '백엔드 단기심화', value: 31, color: '#d97706' },
-  { name: '프론트엔드', value: 30, color: '#16a34a' },
-  { name: '데이터엔지니어링', value: 16, color: '#0891b2' }
-];
-const cb = document.getElementById('courseBars');
-courses.forEach(d => {
-  cb.innerHTML += `
-    <div class="bar-row">
-      <div class="bar-label">${d.name}</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(d.value/80*100)}%;background:${d.color};"></div></div>
-      <div class="bar-count">${d.value}건</div>
-    </div>`;
-});
-</script>
+    function getValue(row, fieldMap, canonical) {
+      const key = fieldMap[canonical];
+      return key ? String(row[key] ?? "").trim() : "";
+    }
+
+    function parseAttendance(value) {
+      const match = String(value || "").replace(",", ".").match(/-?\d+(\.\d+)?/);
+      return match ? Number(match[0]) : null;
+    }
+
+    function parseWeek(value) {
+      const match = String(value || "").match(/\d+/);
+      return match ? Number(match[0]) : null;
+    }
+
+    function splitCourseCohort(value) {
+      const text = String(value || "").trim();
+      if (!text) {
+        return { course: "", cohort: "" };
+      }
+
+      const firstDigitIndex = text.search(/\d/);
+      if (firstDigitIndex > 0) {
+        return {
+          course: text.slice(0, firstDigitIndex).trim(),
+          cohort: text.slice(firstDigitIndex).trim()
+        };
+      }
+
+      return {
+        course: text,
+        cohort: text
+      };
+    }
+
+    function isPositiveDropout(status, reason) {
+      const text = `${status} ${reason}`.toLowerCase();
+      return /조기취업|취업|입사|합격/.test(text);
+    }
+
+    function isDropout(row) {
+      const text = `${row.dropout} ${row.status} ${row.reason}`.toLowerCase();
+      if (!text.trim()) {
+        return false;
+      }
+      return /이탈|중도|탈락|제적|수강철회|포기|withdraw|drop|조기취업|취업/.test(text);
+    }
+
+    function dedupeRows(rows) {
+      const withId = new Map();
+      const withoutId = [];
+
+      rows.forEach((row) => {
+        if (row.studentKey) {
+          withId.set(row.studentKey, row);
+        } else {
+          withoutId.push(row);
+        }
+      });
+
+      return [...withId.values(), ...withoutId];
+    }
+
+    function countBy(rows, field) {
+      const counts = new Map();
+      rows.forEach((row) => {
+        const key = row[field] || "미상";
+        counts.set(key, (counts.get(key) || 0) + 1);
+      });
+      return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function toPercent(value) {
+      return `${value.toFixed(1)}%`;
+    }
+
+    function summarizeDropoutType(dropouts) {
+      if (!dropouts.length) {
+        return "이탈 데이터가 없습니다.";
+      }
+      const positive = dropouts.filter((row) => row.positiveDropout).length;
+      const negative = dropouts.length - positive;
+      return `조기취업 ${positive}건 / 일반 이탈 ${negative}건`;
+    }
+
+    function getUniqueOptions(rows, field) {
+      return [...new Set(rows.map((row) => row[field]).filter(Boolean))].sort((a, b) =>
+        String(a).localeCompare(String(b), "ko")
+      );
+    }
+
+    function fillSelect(selectId, options) {
+      const select = document.getElementById(selectId);
+      const current = select.value;
+      select.innerHTML = '<option value="">전체</option>';
+      options.forEach((option) => {
+        const el = document.createElement("option");
+        el.value = option;
+        el.textContent = option;
+        select.appendChild(el);
+      });
+      select.value = options.includes(current) ? current : "";
+    }
+
+    function buildDataset(rows, fieldMap) {
+      const parsedRows = rows
+        .filter((row) => Object.values(row).some((value) => String(value || "").trim()))
+        .map((row) => {
+          const rawCourse = getValue(row, fieldMap, "course");
+          const rawCohort = getValue(row, fieldMap, "cohort");
+          const combinedInfo = splitCourseCohort(rawCourse || rawCohort);
+          const course = combinedInfo.course || rawCourse || "미분류 과정";
+          const cohort =
+            (rawCohort && rawCohort !== rawCourse ? rawCohort : "") ||
+            combinedInfo.cohort ||
+            "미상 기수";
+          const studentId = getValue(row, fieldMap, "studentId") || "미상";
+          const dropout = getValue(row, fieldMap, "dropout");
+          const status = getValue(row, fieldMap, "status");
+          const rawReason = getValue(row, fieldMap, "reason");
+          const reason = rawReason || "미기재";
+          const week = parseWeek(getValue(row, fieldMap, "week"));
+          const attendance = parseAttendance(getValue(row, fieldMap, "attendance"));
+
+          const normalized = {
+            course,
+            cohort,
+            studentId,
+            dropout,
+            status,
+            reason,
+            week,
+            attendance,
+            studentKey: `${studentId}::${course}::${cohort}`
+          };
+
+          normalized.dropFlag = isDropout(normalized);
+          normalized.positiveDropout = normalized.dropFlag && isPositiveDropout(status, reason);
+          normalized.weekLabel = week ? `${week}주차` : "미상";
+          return normalized;
+        });
+
+      return dedupeRows(parsedRows);
+    }
+
+    function getStats(rows) {
+      const courses = getUniqueOptions(rows, "course");
+      const cohorts = getUniqueOptions(rows, "cohort");
+      const dropouts = rows.filter((row) => row.dropFlag);
+      const reasons = countBy(dropouts, "reason");
+      const weeks = countBy(dropouts, "weekLabel");
+      const averageAttendanceValues = rows.map((row) => row.attendance).filter((value) => value !== null);
+      const averageAttendance =
+        averageAttendanceValues.length > 0
+          ? averageAttendanceValues.reduce((sum, value) => sum + value, 0) / averageAttendanceValues.length
+          : null;
+
+      const courseDropouts = countBy(dropouts, "course");
+      const cohortCounts = new Map();
+      const cohortDropouts = new Map();
+
+      rows.forEach((row) => {
+        cohortCounts.set(row.cohort, (cohortCounts.get(row.cohort) || 0) + 1);
+        if (row.dropFlag) {
+          cohortDropouts.set(row.cohort, (cohortDropouts.get(row.cohort) || 0) + 1);
+        }
+      });
+
+      const cohortRates = [...cohortCounts.entries()]
+        .map(([cohort, total]) => ({
+          cohort,
+          total,
+          dropouts: cohortDropouts.get(cohort) || 0,
+          rate: total ? ((cohortDropouts.get(cohort) || 0) / total) * 100 : 0
+        }))
+        .sort((a, b) => b.rate - a.rate);
+
+      return {
+        rows,
+        courses,
+        cohorts,
+        dropouts,
+        reasons,
+        weeks,
+        averageAttendance,
+        courseDropouts,
+        cohortRates
+      };
+    }
+
+    function describeActiveFilter() {
+      const course = document.getElementById("courseFilter").value;
+      const cohort = document.getElementById("cohortFilter").value;
+      const reason = document.getElementById("reasonFilter").value;
+      const text = document.getElementById("searchInput").value.trim();
+      const parts = [course, cohort, reason, text].filter(Boolean);
+      return parts.length ? parts.join(" / ") : "전체";
+    }
+
+    function updateHeader(stats) {
+      const topReason = stats.reasons[0];
+      const topRisk = stats.cohortRates[0];
+      document.getElementById("kpiCourses").textContent = stats.courses.length || "0";
+      document.getElementById("kpiCoursesSub").textContent = `${stats.rows.length}개 학습자 기준`;
+      document.getElementById("kpiCohorts").textContent = stats.cohorts.length || "0";
+      document.getElementById("kpiCohortsSub").textContent =
+        topRisk ? `위험 기수: ${topRisk.cohort}` : "기수 데이터가 없습니다.";
+      document.getElementById("kpiDropouts").textContent = String(stats.dropouts.length || 0);
+      document.getElementById("kpiDropoutsSub").textContent = summarizeDropoutType(stats.dropouts);
+      document.getElementById("kpiReason").textContent = topReason ? topReason[0] : "-";
+      document.getElementById("kpiReasonSub").textContent = topReason
+        ? `${topReason[1]}건`
+        : "이탈 사유 데이터가 없습니다.";
+
+      document.getElementById("metaStatus").textContent =
+        stats.rows.length > 0 ? "시트 연결 완료" : "데이터 없음";
+      document.getElementById("metaUpdated").textContent = new Date().toLocaleString("ko-KR");
+      document.getElementById("metaFilter").textContent = describeActiveFilter();
+    }
+
+    function destroyChart(name) {
+      if (state.charts[name]) {
+        state.charts[name].destroy();
+      }
+    }
+
+    function makeChart(name, config) {
+      destroyChart(name);
+      state.charts[name] = new Chart(document.getElementById(name), config);
+    }
+
+    function baseBarOptions() {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: "#6b7280" } },
+          y: { beginAtZero: true, ticks: { color: "#6b7280" }, grid: { color: "rgba(17,24,39,0.06)" } }
+        }
+      };
+    }
+
+    function renderOverview(stats) {
+      const colors = ["#2563eb", "#dc2626", "#d97706", "#16a34a", "#7c3aed", "#0891b2"];
+
+      makeChart("courseChart", {
+        type: "bar",
+        data: {
+          labels: stats.courseDropouts.slice(0, 8).map((item) => item[0]),
+          datasets: [{ data: stats.courseDropouts.slice(0, 8).map((item) => item[1]), backgroundColor: colors, borderRadius: 8 }]
+        },
+        options: baseBarOptions()
+      });
+
+      const sortedWeeks = stats.weeks
+        .filter((item) => item[0] !== "미상")
+        .sort((a, b) => parseWeek(a[0]) - parseWeek(b[0]));
+
+      makeChart("weekChart", {
+        type: "line",
+        data: {
+          labels: sortedWeeks.map((item) => item[0]),
+          datasets: [{
+            label: "이탈 건수",
+            data: sortedWeeks.map((item) => item[1]),
+            borderColor: "#dc2626",
+            backgroundColor: "rgba(220, 38, 38, 0.14)",
+            fill: true,
+            tension: 0.3,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#6b7280" } },
+            y: { beginAtZero: true, ticks: { color: "#6b7280" }, grid: { color: "rgba(17,24,39,0.06)" } }
+          }
+        }
+      });
+
+      makeChart("reasonChart", {
+        type: "doughnut",
+        data: {
+          labels: stats.reasons.slice(0, 6).map((item) => item[0]),
+          datasets: [{
+            data: stats.reasons.slice(0, 6).map((item) => item[1]),
+            backgroundColor: ["#dc2626", "#ea580c", "#d97706", "#2563eb", "#7c3aed", "#16a34a"],
+            borderWidth: 0
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: "58%", plugins: { legend: { position: "right", labels: { usePointStyle: true, boxWidth: 8 } } } }
+      });
+
+      makeChart("cohortChart", {
+        type: "bar",
+        data: {
+          labels: stats.cohortRates.slice(0, 8).map((item) => item.cohort),
+          datasets: [{
+            data: stats.cohortRates.slice(0, 8).map((item) => Number(item.rate.toFixed(1))),
+            backgroundColor: stats.cohortRates.slice(0, 8).map((item) => item.rate >= 20 ? "#dc2626" : item.rate >= 10 ? "#d97706" : "#2563eb"),
+            borderRadius: 8
+          }]
+        },
+        options: {
+          ...baseBarOptions(),
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#6b7280" } },
+            y: { beginAtZero: true, ticks: { color: "#6b7280", callback: (value) => `${value}%` }, grid: { color: "rgba(17,24,39,0.06)" } }
+          }
+        }
+      });
+
+      document.getElementById("courseChartNote").textContent = stats.courseDropouts[0] ? `${stats.courseDropouts[0][0]} 과정의 이탈이 가장 많습니다.` : "이탈 데이터가 없습니다.";
+      document.getElementById("weekChartNote").textContent = stats.weeks[0] ? `${stats.weeks[0][0]}에 이탈이 가장 집중됩니다.` : "주차 데이터가 없습니다.";
+      document.getElementById("reasonChartNote").textContent = stats.reasons[0] ? `${stats.reasons[0][0]} 사유가 가장 큽니다.` : "이탈 사유 데이터가 없습니다.";
+      document.getElementById("cohortChartNote").textContent = stats.cohortRates[0] ? `${stats.cohortRates[0].cohort}의 이탈률이 ${toPercent(stats.cohortRates[0].rate)}입니다.` : "기수 데이터가 없습니다.";
+    }
+
+    function renderTable(rows) {
+      const tbody = document.getElementById("detailTableBody");
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="muted">조건에 맞는 데이터가 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.slice(0, 100).map((row) => {
+        const attendance = row.attendance !== null ? `${row.attendance}%` : "-";
+        const statusBadge = row.positiveDropout
+          ? '<span class="positive-badge">조기취업</span>'
+          : row.dropFlag ? '<span class="risk-badge">일반 이탈</span>' : '<span class="muted">재학/기타</span>';
+        return `
+          <tr>
+            <td>${escapeHtml(row.course)}</td>
+            <td>${escapeHtml(row.cohort)}</td>
+            <td>${escapeHtml(row.studentId || "-")}</td>
+            <td>${statusBadge}</td>
+            <td>${row.dropFlag ? '<span class="danger-text">이탈</span>' : '유지'}</td>
+            <td>${escapeHtml(row.weekLabel)}</td>
+            <td>${escapeHtml(row.reason)}</td>
+            <td>${escapeHtml(attendance)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderAnswerSection(title, items) {
+      const rows = (items || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+      return `<section class="answer-section"><h4>${title}</h4><ul>${rows}</ul></section>`;
+    }
+
+    function renderAnswer(result) {
+      const answerArea = document.getElementById("answerArea");
+      answerArea.innerHTML = `
+        <div class="answer-query">질문/기준: ${escapeHtml(result.query || "전체")}</div>
+        <div class="answer-title">${escapeHtml(result.title)}</div>
+        ${renderAnswerSection("Summary", result.summary)}
+        ${renderAnswerSection("상세 분석", result.details)}
+        ${renderAnswerSection("운영 인사이트", result.insights)}
+        ${renderAnswerSection("실행 제안", result.actions)}
+        <div class="answer-chart">
+          <h4 class="panel-title" style="margin-bottom: 12px;">관련 차트</h4>
+          <canvas id="answerChartCanvas"></canvas>
+        </div>
+      `;
+      if (state.answerChart) state.answerChart.destroy();
+      const isBar = result.chart.type !== "doughnut";
+      state.answerChart = new Chart(document.getElementById("answerChartCanvas"), {
+        type: isBar ? "bar" : "doughnut",
+        data: {
+          labels: result.chart.labels,
+          datasets: [{
+            data: result.chart.values,
+            backgroundColor: isBar
+              ? result.chart.values.map((_, index) => ["#2563eb", "#dc2626", "#d97706", "#16a34a", "#7c3aed", "#0891b2"][index % 6])
+              : ["#dc2626", "#ea580c", "#d97706", "#2563eb", "#7c3aed", "#16a34a"],
+            borderRadius: isBar ? 8 : 0,
+            borderWidth: 0
+          }]
+        },
+        options: isBar ? baseBarOptions() : { responsive: true, maintainAspectRatio: false, cutout: "55%", plugins: { legend: { position: "right" } } }
+      });
+    }
+
+    function renderDefaultAnswer(stats) {
+      const topReason = stats.reasons[0];
+      const topWeek = stats.weeks[0];
+      const topRisk = stats.cohortRates[0];
+      const bullets = [
+        `현재 필터 기준 학습자 ${stats.rows.length}명 중 이탈은 ${stats.dropouts.length}건입니다.`,
+        topRisk ? `${topRisk.cohort}의 이탈률이 ${toPercent(topRisk.rate)}로 가장 높습니다.` : "위험 기수 데이터가 없습니다.",
+        topWeek ? `${topWeek[0]}에 이탈이 ${topWeek[1]}건으로 가장 집중됩니다.` : "주차별 이탈 데이터가 없습니다.",
+        topReason ? `주요 이탈 사유는 ${topReason[0]} (${topReason[1]}건)입니다.` : "이탈 사유 데이터가 없습니다."
+      ];
+      renderAnswer({
+        title: "기본 개요",
+        query: describeActiveFilter(),
+        summary: bullets.slice(0, 3),
+        details: bullets,
+        insights: [topWeek ? `${topWeek[0]} 집중 이탈 구간에 대한 초반 케어가 필요합니다.` : "주차별 집중 구간을 확인해 주세요.", topRisk ? `${topRisk.cohort}를 우선 점검 대상으로 두는 것이 좋습니다.` : "기수별 위험도 비교가 필요합니다."],
+        actions: ["이탈률이 높은 기수의 운영 메모와 출석 하락 구간을 함께 점검하세요.", "1~3주차 초반 적응 지원과 조기 면담 대상을 먼저 선정하세요.", "조기취업과 일반 이탈을 분리해서 운영 성과를 해석하세요."],
+        chart: { type: "bar", labels: stats.courseDropouts.slice(0, 6).map((item) => item[0]), values: stats.courseDropouts.slice(0, 6).map((item) => item[1]) }
+      });
+    }
+
+    function analyzeQuery(query, rows) {
+      const text = String(query || "").trim().toLowerCase();
+      const stats = getStats(rows);
+      const courses = getUniqueOptions(rows, "course");
+      const cohorts = getUniqueOptions(rows, "cohort");
+      const matchedCourse = courses.find((item) => text.includes(item.toLowerCase()));
+      const matchedCohort = cohorts.find((item) => text.includes(item.toLowerCase()));
+      const matchedWeek = text.match(/(\d+)\s*주차/);
+      if (matchedWeek) {
+        const weekLabel = `${matchedWeek[1]}주차`;
+        const weekRows = rows.filter((row) => row.dropFlag && row.weekLabel === weekLabel);
+        const weekReasons = countBy(weekRows, "reason");
+        return { title: `${weekLabel} 이탈 분석`, query, summary: [`${weekLabel} 이탈은 ${weekRows.length}건입니다.`, weekReasons[0] ? `가장 큰 사유는 ${weekReasons[0][0]} (${weekReasons[0][1]}건)입니다.` : "사유 데이터가 충분하지 않습니다.", `${weekLabel}는 초반 적응 구간 여부를 확인해야 합니다.`], details: [`${weekLabel} 이탈 건수: ${weekRows.length}건`, `조기취업: ${weekRows.filter((row) => row.positiveDropout).length}건`, `일반 이탈: ${weekRows.filter((row) => row.dropFlag && !row.positiveDropout).length}건`], insights: [weekRows.length ? `${weekLabel} 이탈 사유를 기준으로 운영 개입 대상을 묶어볼 수 있습니다.` : "해당 주차의 이탈 데이터가 없습니다.", weekReasons[0] ? `${weekReasons[0][0]} 대응 메시지를 먼저 정비하는 것이 좋습니다.` : "사유별 대응안이 필요합니다."], actions: [`${weekLabel} 전후 출석률 하락자를 우선 점검하세요.`, "해당 주차 수업 난이도와 운영 공지를 함께 확인하세요.", "주차별 조기 면담 기준을 별도로 두세요."], chart: { type: "doughnut", labels: weekReasons.slice(0, 6).map((item) => item[0]), values: weekReasons.slice(0, 6).map((item) => item[1]) } };
+      }
+      if (text.includes("사유")) {
+        return { title: "이탈 사유 분석", query, summary: [stats.reasons[0] ? `가장 큰 이탈 사유는 ${stats.reasons[0][0]} (${stats.reasons[0][1]}건)입니다.` : "이탈 사유 데이터가 없습니다.", `총 이탈 건수는 ${stats.dropouts.length}건입니다.`, "상위 사유 위주로 운영 대응안을 만드는 것이 좋습니다."], details: stats.reasons.slice(0, 6).map((item) => `${item[0]}: ${item[1]}건`), insights: ["상위 2~3개 사유에 대응하는 운영 메시지와 면담 스크립트를 따로 두는 것이 좋습니다.", "취업/조기취업은 성과성 이탈로 분리해서 해석해야 합니다."], actions: ["이탈 사유를 학습 부담, 일정 병행, 취업, 개인사정으로 묶어 관리하세요.", "사유 미기재 데이터를 줄이기 위한 종료 설문을 운영하세요.", "사유별 대응 담당자를 정해 후속 액션을 남기세요."], chart: { type: "doughnut", labels: stats.reasons.slice(0, 6).map((item) => item[0]), values: stats.reasons.slice(0, 6).map((item) => item[1]) } };
+      }
+      if (text.includes("조기취업") || text.includes("긍정") || text.includes("부정")) {
+        const positive = stats.dropouts.filter((row) => row.positiveDropout).length;
+        const negative = stats.dropouts.length - positive;
+        return { title: "조기취업 vs 일반 이탈", query, summary: [`조기취업은 ${positive}건입니다.`, `일반 이탈은 ${negative}건입니다.`, "운영 성과 해석 시 두 유형을 분리해 보는 것이 중요합니다."], details: [`총 이탈: ${stats.dropouts.length}건`, `조기취업: ${positive}건`, `일반 이탈: ${negative}건`], insights: ["조기취업을 일반 이탈과 섞으면 과정 성과 해석이 왜곡될 수 있습니다.", "슬랙 리포트와 내부 보고서에서 두 수치를 따로 표시하는 것을 권장합니다."], actions: ["보고용 지표에서 조기취업과 일반 이탈을 별도 카드로 분리하세요.", "조기취업자는 성과 사례로, 일반 이탈자는 개선 대상 사례로 나누세요.", "기수 비교 시 순이탈률과 전체 이탈률을 모두 보세요."], chart: { type: "doughnut", labels: ["조기취업", "일반 이탈"], values: [positive, negative] } };
+      }
+      const baseStats = matchedCourse ? getStats(rows.filter((row) => row.course === matchedCourse)) : matchedCohort ? getStats(rows.filter((row) => row.cohort === matchedCohort)) : stats;
+      const title = matchedCourse ? `${matchedCourse} 과정 분석` : matchedCohort ? `${matchedCohort} 기수 분석` : "전체 분석";
+      return { title, query, summary: [`현재 기준 총 이탈은 ${baseStats.dropouts.length}건입니다.`, baseStats.cohortRates[0] ? `가장 위험한 기수는 ${baseStats.cohortRates[0].cohort} (${toPercent(baseStats.cohortRates[0].rate)})입니다.` : "위험 기수 데이터가 없습니다.", baseStats.reasons[0] ? `가장 큰 이탈 사유는 ${baseStats.reasons[0][0]}입니다.` : "이탈 사유 데이터가 없습니다."], details: [`과정 수: ${baseStats.courses.length}`, `기수 수: ${baseStats.cohorts.length}`, baseStats.weeks[0] ? `집중 주차: ${baseStats.weeks[0][0]} (${baseStats.weeks[0][1]}건)` : "주차 데이터가 없습니다."], insights: ["가장 먼저 기수별 이탈률과 주차 집중 구간을 같이 봐야 합니다.", "사유 상위 항목에 대한 대응 스크립트가 있으면 운영 효율이 높아집니다."], actions: ["이탈률 20% 이상 기수를 별도로 표시하세요.", "1~3주차 조기 경보 대상을 선정하세요.", "조기취업과 일반 이탈을 분리해 보고하세요."], chart: { type: "bar", labels: baseStats.cohortRates.slice(0, 6).map((item) => item.cohort), values: baseStats.cohortRates.slice(0, 6).map((item) => Number(item.rate.toFixed(1))) } };
+    }
+
+    function applyFilters() {
+      const course = document.getElementById("courseFilter").value;
+      const cohort = document.getElementById("cohortFilter").value;
+      const reason = document.getElementById("reasonFilter").value;
+      const search = document.getElementById("searchInput").value.trim().toLowerCase();
+      state.filteredRows = state.allRows.filter((row) => {
+        if (course && row.course !== course) return false;
+        if (cohort && row.cohort !== cohort) return false;
+        if (reason && row.reason !== reason) return false;
+        if (search) {
+          const joined = `${row.course} ${row.cohort} ${row.reason} ${row.status} ${row.weekLabel}`.toLowerCase();
+          if (!joined.includes(search)) return false;
+        }
+        return true;
+      });
+      const stats = getStats(state.filteredRows);
+      updateHeader(stats);
+      renderOverview(stats);
+      renderTable(state.filteredRows);
+      renderDefaultAnswer(stats);
+    }
+
+    async function loadSheetData() {
+      try {
+        let response = await fetch(SHEET_CSV_URL);
+        if (!response.ok) {
+          response = await fetch(FALLBACK_CSV_URL);
+        }
+        if (!response.ok) throw new Error(`시트 데이터를 불러오지 못했습니다. (${response.status})`);
+        const csvText = await response.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        if (!parsed.meta.fields || !parsed.meta.fields.length) throw new Error("시트 컬럼을 읽지 못했습니다.");
+        const fieldMap = buildFieldMap(parsed.meta.fields);
+        state.allRows = buildDataset(parsed.data, fieldMap);
+        fillSelect("courseFilter", getUniqueOptions(state.allRows, "course"));
+        fillSelect("cohortFilter", getUniqueOptions(state.allRows, "cohort"));
+        fillSelect("reasonFilter", getUniqueOptions(state.allRows.filter((row) => row.dropFlag), "reason"));
+        state.filteredRows = [...state.allRows];
+        applyFilters();
+        document.getElementById("setupNote").style.display = "none";
+        document.getElementById("metaStatus").textContent = response.url.includes("google") ? "Google Sheets 연결 완료" : "로컬 CSV 연결 완료";
+      } catch (error) {
+        document.getElementById("answerArea").innerHTML = `<div class="answer-title">데이터 연결 오류</div><div class="empty-state">${escapeHtml(error.message)}</div>`;
+        document.getElementById("metaStatus").textContent = "연결 실패";
+      }
+    }
+
+    function runAnalysis() {
+      const query = document.getElementById("queryInput").value.trim() || "전체 분석";
+      const loadingLine = document.getElementById("loadingLine");
+      loadingLine.classList.add("show");
+      renderAnswer(analyzeQuery(query, state.filteredRows));
+      setTimeout(() => loadingLine.classList.remove("show"), 350);
+    }
+
+    function bindEvents() {
+      document.getElementById("applyFiltersBtn").addEventListener("click", applyFilters);
+      document.getElementById("resetFiltersBtn").addEventListener("click", () => {
+        document.getElementById("courseFilter").value = "";
+        document.getElementById("cohortFilter").value = "";
+        document.getElementById("reasonFilter").value = "";
+        document.getElementById("searchInput").value = "";
+        applyFilters();
+      });
+      document.getElementById("analyzeBtn").addEventListener("click", runAnalysis);
+      document.getElementById("queryInput").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") runAnalysis();
+      });
+      document.querySelectorAll(".quick-btn").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.getElementById("queryInput").value = button.dataset.query;
+          runAnalysis();
+        });
+      });
+    }
+
+    bindEvents();
+    loadSheetData();
+  </script>
 </body>
 </html>
